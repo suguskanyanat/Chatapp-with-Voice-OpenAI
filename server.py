@@ -16,16 +16,48 @@ def index():
 
 @app.route('/speech-to-text', methods=['POST'])
 def speech_to_text_route():
-    return None
+    print('processing speech-to-text')
+    audio_binary = request.data # get the user's speech from their request
+    text = speech_to_text(audio_binary)
 
-
-@app.route('/process-message', methods=['POST'])
-def process_prompt_route():
+    # return the response back to the user in JSON format
     response = app.response_class(
-        response=json.dumps({"openaiResponseText": None, "openaiResponseSpeech": None}),
+        response=json.dumps({'text': text}),
         status=200,
         mimetype='application/json'
     )
+    print(response)
+    print(response.data)
+    return response
+
+@app.route('/process-message', methods=['POST'])
+def process_prompt_route():
+    user_message = request.json['userMessage'] # get user's message from their request
+    print('user_message', user_message)
+
+    voice = request.json['voice'] # get user's preferred voice from their request
+    print('voice', voice)
+
+    # call openai_process_message function to process the user's message and get a response back
+    openai_response_text = openai_process_message(user_message)
+
+    # clean the response to remove any empty lines
+    openai_response_text = os.linesep.join([s for s in openai_response_text.splitlines() if s])
+
+    # call our text_to_speech function to convert OpenAI api's response to speech
+    openai_response_speech = text_to_speech(openai_response_text, voice)
+
+    # convert openai_response_speech to base64 string so it can be sent back in the JSON response
+    openai_response_speech = base64.b64encode(openai_response_speech).decode('utf-8')
+
+    # send a JSON response back to the user containing their message's response both in text and speech formats
+    response = app.response_class(
+        response=json.dumps({'openaiResponseText': openai_response_text, 'openaiResponseSpeech': openai_response_speech}),
+        status=200,
+        mimetype='application/json'
+    )
+
+    print(response)
     return response
 
 
